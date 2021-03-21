@@ -5,6 +5,10 @@
 int
 main()
 {
+    if(argc>1){
+        fprintf(2, "usage: pingpong\n");
+        exit(1);
+    }
     int pid;
     int p[2];
     char buf[10];
