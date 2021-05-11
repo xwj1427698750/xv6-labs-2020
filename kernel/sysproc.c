@@ -100,7 +100,7 @@ uint64
 sys_trace(void)
 {
     int mask;
-    if (argint(0, &mask) < 0)
+    if (argint(0, &mask) < 0) //获取系统调用的参数
         return -1;
 //    printf("pid is %d mask is changing\n",myproc()->pid);
     myproc()->mask = mask;
