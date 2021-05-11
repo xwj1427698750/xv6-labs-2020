@@ -273,6 +273,7 @@ fork(void)
     release(&np->lock);
     return -1;
   }
+  np->mask = p->mask;
 
   np->sz = p->sz;
 
