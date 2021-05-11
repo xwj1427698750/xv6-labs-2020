@@ -323,8 +323,8 @@ sfence_vma()
 #define PGSIZE 4096 // bytes per page
 #define PGSHIFT 12  // bits of offset within a page
 
-#define PGROUNDUP(sz)  (((sz)+PGSIZE-1) & ~(PGSIZE-1))
-#define PGROUNDDOWN(a) (((a)) & ~(PGSIZE-1))
+#define PGROUNDUP(sz)  (((sz)+PGSIZE-1) & ~(PGSIZE-1)) //返回页表的下界
+#define PGROUNDDOWN(a) (((a)) & ~(PGSIZE-1))  //a & ~（1111 1111 1111） --> a & （0000 0000 0000） 返回页表的首地址
 
 #define PTE_V (1L << 0) // valid
 #define PTE_R (1L << 1)
@@ -342,7 +342,7 @@ sfence_vma()
 // extract the three 9-bit page table indices from a virtual address.
 #define PXMASK          0x1FF // 9 bits
 #define PXSHIFT(level)  (PGSHIFT+(9*(level)))
-#define PX(level, va) ((((uint64) (va)) >> PXSHIFT(level)) & PXMASK)
+#define PX(level, va) ((((uint64) (va)) >> PXSHIFT(level)) & PXMASK) //返回第level级虚拟地址对应的pte索引
 
 // one beyond the highest possible virtual address.
 // MAXVA is actually one bit less than the max allowed by

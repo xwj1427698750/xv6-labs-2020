@@ -95,3 +95,14 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64
+sys_trace(void)
+{
+    int mask;
+    if (argint(0, &mask) < 0)
+        return -1;
+//    printf("pid is %d mask is changing\n",myproc()->pid);
+    myproc()->mask = mask;
+    return 0;
+}

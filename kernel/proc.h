@@ -28,6 +28,9 @@ struct cpu {
 
 extern struct cpu cpus[NCPU];
 
+// trapframe 栈帧当产生中断时，我们需要保存当前 所有寄存器 的状态，然后处理中断，最后恢复寄存器状态，继续执行之前的命令。
+// 我们需要按照特定的格式保存寄存器，以便于我们使用 栈帧 结构体查看或修改这些寄存器。
+// 可以理解为，在一片连续的内存空间中存放了我们寄存器的状态，我们通过这片空间的首地址（指针）来访问他们。
 // per-process data for the trap handling code in trampoline.S.
 // sits in a page by itself just under the trampoline page in the
 // user page table. not specially mapped in the kernel page table.
@@ -103,4 +106,5 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  int mask;                    // trace 系统调用追踪的系统调用号
 };

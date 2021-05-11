@@ -273,6 +273,7 @@ fork(void)
     release(&np->lock);
     return -1;
   }
+
   np->sz = p->sz;
 
   np->parent = p;
@@ -288,7 +289,7 @@ fork(void)
     if(p->ofile[i])
       np->ofile[i] = filedup(p->ofile[i]);
   np->cwd = idup(p->cwd);
-
+//  printf("parent's name is %s pid is %d mask is %d, child's name is %s pid is %d mask is %d\n",p->name,p->pid,p->mask,np->name,np->pid,np->mask);
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
