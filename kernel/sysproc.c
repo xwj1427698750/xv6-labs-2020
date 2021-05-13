@@ -6,6 +6,7 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "sysinfo.h"
 
 uint64
 sys_exit(void)
@@ -104,5 +105,23 @@ sys_trace(void)
         return -1;
 //    printf("pid is %d mask is changing\n",myproc()->pid);
     myproc()->mask = mask;
+    return 0;
+}
+
+uint64
+sys_sysinfo(void)
+{
+    uint64 si; // user pointer to struct sysinfo
+    if(argaddr(0, &si) < 0)
+        return -1;
+
+    struct sysinfo sinfo;
+    sinfo.freemem = get_free_mem(); //获取剩余的物理内存
+    sinfo.nproc = get_process_num();//获取状态不为UNUSED的进程数
+
+    //将内核态的sinfo复制到用户态si指向的struct sysinfo变量
+    struct proc *p = myproc();
+    if(copyout(p->pagetable, si, (char *)&sinfo, sizeof(sinfo)) < 0)
+        return -1;
     return 0;
 }

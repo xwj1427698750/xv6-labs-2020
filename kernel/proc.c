@@ -44,6 +44,21 @@ procinit(void)
   kvminithart();
 }
 
+uint64
+get_process_num(void){
+    uint64 num = 0;
+    struct proc *p;
+
+    for(p = proc; p < &proc[NPROC]; p++){
+        acquire(&p->lock);
+        if(p->state != UNUSED)
+            num++;
+        release(&p->lock);
+    }
+
+    return num;
+}
+
 // Must be called with interrupts disabled,
 // to prevent race with process being moved
 // to a different CPU.
