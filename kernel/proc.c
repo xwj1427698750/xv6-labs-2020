@@ -163,7 +163,9 @@ freeproc(struct proc *p) {
 
     // free kstack
     if(p->kstack){
-        uvmunmap(p->kernel_pagetable, p->kstack, 1, 1);
+        int do_free = 1;
+        int npages = 1;
+        uvmunmap(p->kernel_pagetable, p->kstack, npages, do_free);
 //        pte_t* pte = walk(p->kernel_pagetable, p->kstack, 0);
 //        if(pte == 0){
 //            panic("freeproc: kstack");
