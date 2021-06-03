@@ -276,6 +276,10 @@ userinit(void) {
     uvminit(p->pagetable, initcode, sizeof(initcode));
     p->sz = PGSIZE;
 
+    // Copy user memory from user pagetable  to user's process pagetable.
+    if (uvmcopy_kernel(p->pagetable, p->kernel_pagetable,0, p->sz) < 0) {
+        panic("userinit: uvmcopy_kernel");
+    }
     // prepare for the very first "return" from kernel to user.
     p->trapframe->epc = 0;      // user program counter
     p->trapframe->sp = PGSIZE;  // user stack pointer
@@ -296,14 +300,26 @@ growproc(int n) {
     struct proc *p = myproc();
 
     sz = p->sz;
+
     if (n > 0) {
+        if(PGROUNDUP(sz+n) >= PLIC) //一开始，我是没有考虑到需要加PGROUNDUP的，但是这里内存分配都是整页来的，故需要加上。
+            return -1;
         if ((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
+            return -1;
+        }
+        // Copy user memory from user pagetable  to user's process pagetable.
+        if (uvmcopy_kernel(p->pagetable, p->kernel_pagetable, sz-n, sz) < 0) {
             return -1;
         }
     } else if (n < 0) {
         sz = uvmdealloc(p->pagetable, sz, sz + n);
+        // Remove invalid page table mapping in kernel page table. This is not necessary.
+        if (uvmdealloc_kernel(p->kernel_pagetable, sz-n, sz) != sz) {
+            return -1;
+        }
     }
     p->sz = sz;
+
     return 0;
 }
 
@@ -329,6 +345,12 @@ fork(void) {
     np->sz = p->sz;
 
     np->parent = p;
+    // Copy user memory from user pagetable  to user's process pagetable.
+    if (uvmcopy_kernel(np->pagetable, np->kernel_pagetable, 0, np->sz) < 0) {
+        freeproc(np);
+        release(&np->lock);
+        return -1;
+    }
 
     // copy saved user registers.
     *(np->trapframe) = *(p->trapframe);
