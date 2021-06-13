@@ -67,6 +67,20 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+    if(which_dev == 2){//timer interrupt
+        struct proc* p = myproc();
+        if(p->ticks != 0){//p->ticks = 0表示没有中断需求
+            p->ticks_passed++;
+            *(p->timer_trapframe) = *(p->trapframe);//保存始终中断的现场，在handler处理完后，调用sigreturn的时候，通过p->timer_trapframe恢复。
+//            p->timer_trapframe->epc += 4;//epc需要指向被timer interrupt中断的下一条指令,原有的timer interrupt中的代码里没有对epc进行更改，说明中断这里还是会返回原有指令执行，故注释掉这行代码
+            if(p->ticks_passed == p->ticks && p->handler_finished==1){//达到间隔时间周期，以及之前的handler已经完成了
+  //            p->handler();     //处理函数无法调用，这里面的地址是用户空间的，需要返回用户空间来调用
+              p->trapframe->epc = (uint64) p->handler;//sret调用后会将pc设置为sepc寄存器(usertrapret中的 w_sepc(p->trapframe->epc);设置sepc寄存器)的值
+              p->ticks_passed = 0;
+              p->handler_finished = 0;
+            }
+        }
+    }
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());

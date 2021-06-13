@@ -112,6 +112,12 @@ found:
     release(&p->lock);
     return 0;
   }
+  // Allocate a timer_trapframe page.
+  if((p->timer_trapframe = (struct trapframe *)kalloc()) == 0){
+      release(&p->lock);
+      return 0;
+  }
+
 
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
@@ -120,7 +126,10 @@ found:
     release(&p->lock);
     return 0;
   }
-
+  // the alarm set up
+  p->ticks = p->ticks_passed = 0;
+  p->handler = 0;
+  p->handler_finished = 1;
   // Set up new context to start executing at forkret,
   // which returns to user space.
   memset(&p->context, 0, sizeof(p->context));
@@ -137,8 +146,11 @@ static void
 freeproc(struct proc *p)
 {
   if(p->trapframe)
-    kfree((void*)p->trapframe);
+        kfree((void*)p->trapframe);
   p->trapframe = 0;
+  if(p->timer_trapframe)
+        kfree((void*)p->timer_trapframe);
+  p->timer_trapframe = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
@@ -150,6 +162,8 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+  p->ticks = 0;
+  p->handler_finished = 1;
 }
 
 // Create a user page table for a given process,
