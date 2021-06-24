@@ -213,28 +213,6 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm) {
     return 0;
 }
 
-int
-new_mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm, int perm2) {
-    uint64 a, last;
-    pte_t *pte;
-
-    a = PGROUNDDOWN(va);
-    last = PGROUNDDOWN(va + size - 1);
-    for (;;) {
-        if ((pte = walk(pagetable, a, 1)) == 0)
-            return -1;
-        if ((*pte & PTE_V) && (*pte & PTE_COW) == 0)
-            panic("remap");
-        *pte = PA2PTE(pa) | perm | PTE_V;
-        *pte &= ~perm2;
-        if (a == last)
-            break;
-        a += PGSIZE;
-        pa += PGSIZE;
-    }
-    return 0;
-}
-
 // Remove npages of mappings starting from va. va must be
 // page-aligned. The mappings must exist.
 // Optionally free the physical memory.
@@ -385,12 +363,13 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz) {
             panic("uvmcopy: page not present");
         pa = PTE2PA(*pte);
 
-        //页表项设置只读和COW标志
         flags = PTE_FLAGS(*pte);
-        flags = flags | PTE_R | PTE_COW;
-        *pte = *pte | flags;
-        *pte &= ~PTE_W;
-        if (new_mappages(new, i, PGSIZE, pa, flags, PTE_W) != 0) {//在新的页表中仍然映射原先的物理地址,并且设置只读
+        //针对本来含有写权限的页表项设置权限
+        if(flags & PTE_W){
+            flags = (flags | PTE_COW) &(~PTE_W);
+            *pte = *pte | flags;
+        }
+        if (mappages(new, i, PGSIZE, pa, flags) != 0) {//在新的页表中仍然映射原先的物理地址,并且设置只读
             goto err;
         }
         incr_page_ref(pa, 1);//更新物理页面pa的引用数
