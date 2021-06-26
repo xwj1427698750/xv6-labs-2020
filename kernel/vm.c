@@ -129,32 +129,22 @@ walkaddr(pagetable_t pagetable, uint64 va) {
     if ((*pte & PTE_U) == 0)
         return 0;
     /**页表没有写的权限且含有COW标志*/
-    if ((*pte & PTE_W) == 0 && (*pte & PTE_COW) != 0) {
-        struct proc *p = myproc();
+    if ((*pte & PTE_COW) != 0) {
+//        struct proc *p = myproc();
 //        if (va >= p->sz || va <= PGROUNDDOWN(p->trapframe->sp)) {//出错地址大于当前进程被sbrk()分配的空间或者出错地址访问了用户栈的guard page
 //            return 0;
 //        }
         uint64 pa = PTE2PA(*pte);
-        if (get_page_ref(pa) > 1) {//指向当前物理页面的页表个数大于1
-            uint64 ka = (uint64) kalloc();
-            int flags = PTE_FLAGS(*pte);
-            flags &= ~PTE_COW;//原先的flags中要清除PTE_COW标志
-            if (ka == 0) {//分配物理内存失败
-                p->killed = 1;
-                return 0;
-            }
-            memmove((void *) ka, (char *) pa, PGSIZE);
-            va = PGROUNDDOWN(va);
-            incr_page_ref(pa, -1);//更新page_ref
-            if (mappages(p->pagetable, va, PGSIZE, ka, flags | PTE_U | PTE_R | PTE_W) != 0) {//针对新分配的页面建立映射，原先的权限不能忘记
-                kfree((void *) ka);
-                p->killed = 1;
-                return 0;
-            }
-            return ka;
-        } else {//指向当前物理页面的页表个数等于1
-            *pte = (*pte | PTE_W) & (~PTE_COW);//增加写权限，去除COW标志
+        uint64 ka = (uint64) kalloc();
+        int flags = PTE_FLAGS(*pte);
+        flags &= ~PTE_COW;//原先的flags中要清除PTE_COW标志
+        if (ka == 0) {//分配物理内存失败
+            return 0;
         }
+        memmove((void *) ka, (char *) pa, PGSIZE);
+        kfree((void*)pa);
+        *pte = PA2PTE(ka) | flags | PTE_W;
+        return ka;
     }
     pa = PTE2PA(*pte);
     return pa;
@@ -202,7 +192,7 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm) {
     for (;;) {
         if ((pte = walk(pagetable, a, 1)) == 0)
             return -1;
-        if ((*pte & PTE_V) && (*pte & PTE_COW) == 0)
+        if ((*pte & PTE_V))
             panic("remap");
         *pte = PA2PTE(pa) | perm | PTE_V;
         if (a == last)
@@ -228,8 +218,6 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free) {
         if ((pte = walk(pagetable, a, 0)) == 0)
             panic("uvmunmap: walk");
         if ((*pte & PTE_V) == 0){
-//            vmprint(pagetable);
-//            printf("pte = %p, *pte = %p\n",pte,*pte);
             panic("uvmunmap: not mapped");
         }
 
@@ -367,14 +355,14 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz) {
         //针对本来含有写权限的页表项设置权限
         if(flags & PTE_W){
             flags = (flags | PTE_COW) &(~PTE_W);
-            *pte = *pte | flags;
+//            *pte = *pte | flags;
+            *pte = PA2PTE(pa) | flags;
         }
+        incr_page_ref(pa, 1);//更新物理页面pa的引用数
         if (mappages(new, i, PGSIZE, pa, flags) != 0) {//在新的页表中仍然映射原先的物理地址,并且设置只读
             goto err;
         }
-        incr_page_ref(pa, 1);//更新物理页面pa的引用数
     }
-
     return 0;
 
     err:

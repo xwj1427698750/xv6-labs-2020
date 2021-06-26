@@ -70,25 +70,21 @@ usertrap(void) {
         uint64 va = r_stval();
         pte_t *pte = walk(p->pagetable, va, 0);
 
-        if (pte != 0 && (*pte & PTE_COW) != 0 && scause == 15) {// store page fault
+        if (pte != 0 && (*pte & PTE_COW) != 0 && (scause == 15)) {// store page fault
+            if (va >= MAXVA || (va <= PGROUNDDOWN(p->trapframe->sp) && va >= PGROUNDDOWN(p->trapframe->sp) - PGSIZE)) {//出错地址大于当前进程被sbrk()分配的空间或者出错地址访问了用户栈的guard page
+                p->killed = 1;
+                exit(-1);
+            }
             uint64 pa = PTE2PA(*pte);
-            if(get_page_ref(pa) > 1){//指向当前物理页面的页表个数大于1
-                uint64 ka = (uint64) kalloc();
-                int flags = PTE_FLAGS(*pte);
-                flags &= ~PTE_COW;//原先的flags中要清除PTE_COW标志
-                if (ka == 0) {//分配物理内存失败
-                    p->killed = 1;
-                } else {
-                    memmove((void *) ka, (char *) pa, PGSIZE);
-                    va = PGROUNDDOWN(va);
-                    if (mappages(p->pagetable, va, PGSIZE, ka, flags | PTE_U | PTE_R | PTE_W) != 0) {//针对新分配的页面建立映射，原先的权限不能忘记
-                        kfree((void *) ka);
-                        p->killed = 1;
-                    }
-                    incr_page_ref(pa,-1);//更新page_ref
-                }
-            }else{//指向当前物理页面的页表个数等于1
-                *pte = (*pte | PTE_W) & (~PTE_COW);//增加写权限，去除COW标志
+            uint64 ka = (uint64) kalloc();
+            int flags = PTE_FLAGS(*pte);
+            flags &= ~PTE_COW;//原先的flags中要清除PTE_COW标志
+            if (ka == 0) {//分配物理内存失败
+                p->killed = 1;
+            } else {
+                memmove((void *) ka, (char *) pa, PGSIZE);
+                *pte = PA2PTE(ka) | flags | PTE_W;
+                kfree((void*)pa);
             }
 
         } else {
