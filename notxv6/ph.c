@@ -16,7 +16,8 @@ struct entry {
 struct entry *table[NBUCKET];
 int keys[NKEYS];
 int nthread = 1;
-
+pthread_mutex_t locks[NBUCKET];            // declare a lock array for each bucket
+pthread_mutex_t lock;
 double
 now()
 {
@@ -46,6 +47,8 @@ void put(int key, int value)
     if (e->key == key)
       break;
   }
+  pthread_mutex_lock(&locks[i]);       // acquire lock
+//  pthread_mutex_lock(&lock);       // acquire lock
   if(e){
     // update the existing key.
     e->value = value;
@@ -53,6 +56,8 @@ void put(int key, int value)
     // the new is new.
     insert(key, value, &table[i], table[i]);
   }
+  pthread_mutex_unlock(&locks[i]);     // release lock
+//  pthread_mutex_unlock(&lock);     // release lock
 }
 
 static struct entry*
@@ -102,7 +107,9 @@ main(int argc, char *argv[])
   pthread_t *tha;
   void *value;
   double t1, t0;
-
+  pthread_mutex_init(&lock, NULL);//initialize the lock
+  for(int i=0;i<NBUCKET;i++)
+      pthread_mutex_init(&locks[i], NULL); // initialize all the locks
   if (argc < 2) {
     fprintf(stderr, "Usage: %s nthreads\n", argv[0]);
     exit(-1);
@@ -114,6 +121,9 @@ main(int argc, char *argv[])
   for (int i = 0; i < NKEYS; i++) {
     keys[i] = random();
   }
+
+
+
 
   //
   // first the puts
