@@ -18,9 +18,9 @@ sputc(char *s, char c)
   return 1;
 }
 
+/**根据不同进制，将整数存到字符串s中，返回存到s中的字符个数*/
 static int
-sprintint(char *s, int xx, int base, int sign)
-{
+sprintint(char *s, int xx, int base, int sign){
   char buf[16];
   int i, n;
   uint x;
@@ -44,9 +44,9 @@ sprintint(char *s, int xx, int base, int sign)
   return n;
 }
 
+/**将printf按格式输出重定向到buf字符串中，返回的是输出的字符个数，输出的字符个数不得超过sz*/
 int
-snprintf(char *buf, int sz, char *fmt, ...)
-{
+snprintf(char *buf, int sz, char *fmt, ...){
   va_list ap;
   int i, c;
   int off = 0;

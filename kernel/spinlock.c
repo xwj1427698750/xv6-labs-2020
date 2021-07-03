@@ -169,7 +169,7 @@ snprint_lock(char *buf, int sz, struct spinlock *lk)
   }
   return n;
 }
-
+/** 将统计数据传递到buf对应的字符串中，大小限制为sz, 返回传递的字符数 */
 int
 statslock(char *buf, int sz) {
   int n;
