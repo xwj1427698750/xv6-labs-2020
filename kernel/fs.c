@@ -366,17 +366,17 @@ bmap(struct inode *ip, uint bn) {
     uint addr, *a, *level0, *level1;
     struct buf *bp, *bp0, *bp1;
 
-    if (bn < NDIRECT - 1) {// the first 11 elements
+    if (bn < NDIRECT) {// the first 11 elements
         if ((addr = ip->addrs[bn]) == 0)
             ip->addrs[bn] = addr = balloc(ip->dev);
         return addr;
     }
-    bn -= (NDIRECT - 1);
+    bn -= NDIRECT;
 
     if (bn < NINDIRECT) {
         // Load indirect block, allocating if necessary.
-        if ((addr = ip->addrs[NDIRECT - 1]) == 0)// the 12th
-            ip->addrs[NDIRECT - 1] = addr = balloc(ip->dev);
+        if ((addr = ip->addrs[NDIRECT]) == 0)// the 12th
+            ip->addrs[NDIRECT] = addr = balloc(ip->dev);
         bp = bread(ip->dev, addr);
         a = (uint *) bp->data;
         if ((addr = a[bn]) == 0) {
@@ -389,8 +389,8 @@ bmap(struct inode *ip, uint bn) {
     bn -= NINDIRECT;
     if (bn < DOUBLE_INDIRECT) {
         // Load double indirect block, allocating if necessary.
-        if ((addr = ip->addrs[NDIRECT]) == 0)// the 13th
-            ip->addrs[NDIRECT] = addr = balloc(ip->dev);
+        if ((addr = ip->addrs[NDIRECT+1]) == 0)// the 13th
+            ip->addrs[NDIRECT+1] = addr = balloc(ip->dev);
 
         bp0 = bread(ip->dev, addr);// read the level0 block buf of doubly-indirect block
         level0 = (uint *) bp0->data;
@@ -419,26 +419,26 @@ itrunc(struct inode *ip) {
     struct buf *bp, *bp1;
     uint *a, *level0, *level1;
 
-    for (i = 0; i < NDIRECT - 1; i++) {
+    for (i = 0; i < NDIRECT; i++) {
         if (ip->addrs[i]) {
             bfree(ip->dev, ip->addrs[i]);
             ip->addrs[i] = 0;
         }
     }
 
-    if (ip->addrs[NDIRECT-1]) {
-        bp = bread(ip->dev, ip->addrs[NDIRECT-1]);
+    if (ip->addrs[NDIRECT]) {
+        bp = bread(ip->dev, ip->addrs[NDIRECT]);
         a = (uint *) bp->data;
         for (j = 0; j < NINDIRECT; j++) {
             if (a[j])
                 bfree(ip->dev, a[j]);
         }
         brelse(bp);
-        bfree(ip->dev, ip->addrs[NDIRECT-1]);
-        ip->addrs[NDIRECT-1] = 0;
+        bfree(ip->dev, ip->addrs[NDIRECT]);
+        ip->addrs[NDIRECT] = 0;
     }
-    if (ip->addrs[NDIRECT]) {
-        bp = bread(ip->dev, ip->addrs[NDIRECT]);
+    if (ip->addrs[NDIRECT + 1]) {
+        bp = bread(ip->dev, ip->addrs[NDIRECT + 1]);
         level0 = (uint *) bp->data;
         for (i = 0; i < NINDIRECT; i++) {
             if (level0[i]){
@@ -452,8 +452,8 @@ itrunc(struct inode *ip) {
             }
         }
         brelse(bp);
-        bfree(ip->dev, ip->addrs[NDIRECT]);
-        ip->addrs[NDIRECT] = 0;
+        bfree(ip->dev, ip->addrs[NDIRECT + 1]);
+        ip->addrs[NDIRECT + 1] = 0;
     }
 
     ip->size = 0;
