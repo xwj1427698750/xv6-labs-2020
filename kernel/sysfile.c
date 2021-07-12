@@ -300,6 +300,20 @@ sys_open(void) {
             return -1;
         }
         ilock(ip);
+        int link_depth = 0;
+        while((omode & O_NOFOLLOW) == 0 && ip->type == T_SYMLINK){
+            char target[MAXPATH];
+            if(readi(ip, 0, (uint64) target, 0, MAXPATH) != MAXPATH) goto bad;
+            // 即将获取路径target对应的inode指针，先获取新的inode指针，再释放旧的
+            if((next = namei(target)) == 0) goto bad;
+            iunlockput(ip);
+            ip = next;
+            ilock(ip);
+
+            link_depth++;
+            if(link_depth >= LINK_DEPTH_THRESHOLD) goto bad;    // symbolic链接的深度超过了最大值
+        }
+
         if (ip->type == T_DIR && omode != O_RDONLY) {
             iunlockput(ip);
             end_op();
@@ -327,19 +341,6 @@ sys_open(void) {
     } else {
         f->type = FD_INODE;
         f->off = 0;
-    }
-    int link_depth = 0;
-    while((omode & O_NOFOLLOW) == 0 && ip->type == T_SYMLINK){
-        char target[MAXPATH];
-        if(readi(ip, 0, (uint64) target, 0, MAXPATH) != MAXPATH) goto bad;
-        // 即将获取路径target对应的inode指针，先获取新的inode指针，再释放旧的
-        if((next = namei(target)) == 0) goto bad;
-        iunlockput(ip);
-        ip = next;
-        ilock(ip);
-
-        link_depth++;
-        if(link_depth >= LINK_DEPTH_THRESHOLD) goto bad;    // symbolic链接的深度超过了最大值
     }
     f->ip = ip;
     f->readable = !(omode & O_WRONLY);
